@@ -248,7 +248,7 @@ template<typename Graph> void read_graph(Graph& g, const mystring& file)
   
   bondcontent_map_t bondcontent_map = get(edge_content, g);
   
-  gzifstream in;
+  ifstream in;
   in.open(file.c_str(),ios_in);
   
   unsigned int vol, source, target;
@@ -257,15 +257,14 @@ template<typename Graph> void read_graph(Graph& g, const mystring& file)
   for(unsigned int i = 0; i < vol; ++i) add_vertex(g);
 
   Bond_Content bc;
-  while(!in.eof()) {
-    in>>source>>target>>bc;
-    if(!in.eof()) {
-      edge_descriptor e;
-      bool accept;
-      tie(e,accept) = add_edge(vertex(source-1, g), vertex(target-1, g), g);
-      if(!accept) my_throw("read_graph(): could not insert edge\n");
-      bondcontent_map(e) = bc;
-    }
+  while(in>>source>>target>>bc) {
+    edge_descriptor e;
+    bool accept;
+    tie(e,accept) = edge(vertex(source-1, g), vertex(target-1, g), g);
+    if(accept) my_throw("read_graph(): multiple edge detected\n");
+    tie(e,accept) = add_edge(vertex(source-1, g), vertex(target-1, g), g);
+    if(!accept) my_throw("read_graph(): could not insert edge\n");
+    bondcontent_map(e) = bc;
   }
 
   in.close();
@@ -303,6 +302,8 @@ template<typename Graph> void read_graph_leda(Graph& g, const mystring& file)
       in.ignore(10,'|');
       edge_descriptor e;
       bool accept;
+      tie(e,accept) = edge(vertex(source-1, g), vertex(target-1, g), g);
+      if(accept) my_throw("read_graph(): multiple edge detected\n");
       tie(e,accept) = add_edge(vertex(source-1, g), vertex(target-1, g), g);
       if(!accept) my_throw("read_graph(): could not insert edge\n");
       bondcontent_map(e) = bc;

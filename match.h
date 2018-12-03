@@ -20,6 +20,7 @@
 #include <cmath>
 #include <boost/graph/breadth_first_search.hpp>
 
+#include "my_throw.h"
 #include "bgl_properties.h"
 
 #define NDEBUG
@@ -125,6 +126,10 @@ edge_succ(const typename graph_traits<Graph>::edge_descriptor& e, const Graph& g
 template<class Graph> typename graph_traits<Graph>::edge_descriptor
 reverse_edge(const typename graph_traits<Graph>::edge_descriptor& e, const Graph& g)
 {
+  //if(edge(target(e,g), source(e,g), g).second == false) {
+  //  cout<<"link "<<source(e,g)<<" <-> "<<target(e,g)<<endl;
+  //  my_throw("corrupt link reversal information\n");
+  //}
   return edge(target(e,g), source(e,g), g).first;
 }
 
@@ -184,7 +189,6 @@ template<class Graph, class Dual_Graph> unsigned int dual_graph(Graph& g, Dual_G
   // walk through graph and label edges according to
   // loop "numbers", insert vertices in dual graph
   for(tie(ei, eend) = edges(g); ei != eend; ++ei) {
-    //cout<<bondcontent[*ei]<<" ";
     // ignore open boundary edges
     if(bondcontent[*ei] == 0) loop[*ei].label = 2;
     if(loop[*ei].label == 0) { // new loop or dual vertex
@@ -202,7 +206,6 @@ template<class Graph, class Dual_Graph> unsigned int dual_graph(Graph& g, Dual_G
       } while(pos != reverse_edge(*ei, g));
     }
   }
-  //cout<<endl;
 
   unsigned int count = 0, frust = 0;
   d_edge_descriptor de;

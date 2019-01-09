@@ -8,6 +8,8 @@
 #include <boost/graph/iteration_macros.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/graph/copy.hpp>
+#include <boost/graph/boyer_myrvold_planar_test.hpp>
+#include <boost/graph/graphviz.hpp>
 #include <readline/readline.h>
 #include <sys/stat.h>
 #include <sys/times.h>
@@ -54,7 +56,8 @@ bool match(const Graph& g, const Dual_Graph& dg, ContentMap& vertexcontent, cons
   typedef typename property_traits<ContentMap>::value_type Vertex_Content;
 
   //const unsigned int multiplier = 999999;
-  const unsigned int multiplier = 899999999;
+  const unsigned int multiplier = 89999999;
+  //const unsigned int multiplier = 899999999;
   // shift to ensure that edge weights are positive for Dijkstra
   
   vertex_iterator vi, vend;
@@ -92,14 +95,19 @@ bool match(const Graph& g, const Dual_Graph& dg, ContentMap& vertexcontent, cons
   float maxweight = numeric_limits<float>::min(), minweight = numeric_limits<float>::max();
   unsigned true_bonds = 0; 
 
-  for(unsigned int i = 0; i < num_frustrated; ++i)
+  for(unsigned int i = 0; i < num_frustrated; ++i) {
+    //cout<<frust_to_plaq[i]<<": ";
     for(unsigned int j = 0; j < i; ++j) {
       distance_matrix[i][j] = distance_matrix[i][frust_to_plaq[j]];
       if(distance_matrix[i][j] == MAXFLOAT) continue;
       ++true_bonds;
       maxweight = (distance_matrix[i][frust_to_plaq[j]] > maxweight) ? distance_matrix[i][frust_to_plaq[j]] : maxweight;
       minweight = (distance_matrix[i][frust_to_plaq[j]] < minweight) ? distance_matrix[i][frust_to_plaq[j]] : minweight;
+      //cout<<frust_to_plaq[j]<<" ("<<distance_matrix[i][j]<<") ";
     }
+    //cout<<endl;
+  }
+  //cout<<endl;
 
 #ifndef NDEBUG    
   cout<<"using "<<true_bonds<<" bonds for matching"<<endl;
@@ -121,8 +129,8 @@ bool match(const Graph& g, const Dual_Graph& dg, ContentMap& vertexcontent, cons
       int discrete = static_cast<int>((distance_matrix[i][j]-minweight)/divider*multiplier);
       float diff = (distance_matrix[i][j]-(((float)(discrete))/multiplier*divider+minweight))/distance_matrix[i][j];
       maxdiff = (diff > maxdiff) ? diff : maxdiff;
+      //cout<<"original: "<<distance_matrix[i][j]<<", discrete: "<<discrete<<endl;
       distance_matrix[i][j] = discrete;
-      //cout<<"discrete: "<<discrete<<endl;
     }
     
 #ifndef NDEBUG
@@ -145,22 +153,37 @@ bool match(const Graph& g, const Dual_Graph& dg, ContentMap& vertexcontent, cons
   for(tie(dei, deend) = edges(dg); dei != deend; ++dei) broken_label[*dei] = false;
 
   unsigned int matchcount = 0, brokenedges_count = 0;
-    
+
+  /*
+  cout<<"distance matrix:"<<endl;
+  for(unsigned int i = 0; i < num_frustrated; ++i) {
+    for(unsigned int j = 0; j < i; ++j) {
+      cout<<setw(10)<<-distance_matrix[i][j]*divider/multiplier+minweight;
+    }
+    cout<<endl;
+  }
+  cout<<endl;
+  */  
+
   for(unsigned int i = 0; i < num_frustrated; ++i) {
     for(unsigned int j = 0; j < i; ++j) {
       float len = distance_matrix[i][j];
       if(len < 0) { // i and j are matched
-	//cout<<frust_to_plaq[i]<<" -> "<<frust_to_plaq[j]<<": "<<-len*divider/multiplier+minweight<<endl;
+	//cout<<frust_to_plaq[i]<<" -> "<<frust_to_plaq[j]<<": "<<-len*divider/multiplier+minweight;
+	//cout<<frust_to_plaq[i]<<" -> "<<frust_to_plaq[j]<<": "<<-len;
 	++matchcount;
 	unsigned int src = i, trg = j;
 	unsigned int cur = frust_to_plaq[trg], pred;
 	unsigned int pathlength = 0;
 	// walk up the predecessor tree to the source
+	//cout<<", path: ";
 	while((pred = predecessor_matrix[src][cur]) != cur) {
+	  //cout<<cur;
 	  ++brokenedges_count;
 	  ++pathlength;
 	  // caution: we can have parallel edges!
 	  d_edge_descriptor e = smallest_weight_edge(cur, pred, dual_bondcontent, dg);
+	  //cout<<" ("<<dual_bondcontent[e]<<") - ";
 	  broken_label[e] = true;
 	  // get correct reverse edge by mapping to the original graph and back
 	  broken_label[edge_to_dual[reverse_edge(dual_to_edge[e], g)]] = true;
@@ -168,6 +191,7 @@ bool match(const Graph& g, const Dual_Graph& dg, ContentMap& vertexcontent, cons
 	}
 	if(cur != (unsigned int)frust_to_plaq[src]) my_throw("oops, broken predecessor tree\n");
 	if(!pathlength) my_throw("oops, path of zero length encountered\n");
+	//cout<<cur<<endl;
       }
     }
   }
@@ -327,6 +351,8 @@ int main(int argc, char *argv[])
 
   Graph g;
   read_graph(g, params.graphpath);
+  //bool is_planar = boyer_myrvold_planarity_test(g);
+  //if(!is_planar) my_throw("input graph not planar!\n");
   unsigned int vol = num_vertices(g);
   Vertex_Content *content_array = new Vertex_Content[vol];
   for(unsigned int k = 0; k < vol; ++k) content_array[k] = 1;
@@ -373,6 +399,14 @@ int main(int argc, char *argv[])
   // allocate memory for the matching
 
   unsigned int num_frustrated = dual_graph(g, dg);
+
+  /*
+  ofstream vout;
+  vout.open("graph.dot",ios::out);
+  write_graphviz(vout, dg);
+  vout.close();
+  */ 
+
   unsigned int dvol = num_vertices(dg);
   cout<<vol<<" sites, "<<dvol<<" plaquettes, "<<num_frustrated<<" frustrated plaquettes"<<endl;
   
